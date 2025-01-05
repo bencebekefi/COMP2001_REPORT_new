@@ -111,6 +111,27 @@ def create_app():
                 logging.error(f"Error creating trail: {e}")
                 abort(500, description="Internal Server Error")
 
+    @app.route('/trails/<int:trail_id>', methods=['DELETE'])
+    def delete_trail(trail_id):
+        try:
+            # Fetch the trail by its ID
+            trail = Trail.query.get(trail_id)
+            if not trail:
+                logging.warning(f"Trail with ID {trail_id} not found.")
+                abort(404, description=f"Trail with ID {trail_id} not found.")
+
+            # Delete the trail
+            db.session.delete(trail)
+            db.session.commit()
+
+            logging.info(f"Trail with ID {trail_id} deleted successfully.")
+            return jsonify({"message": f"Trail with ID {trail_id} deleted successfully."}), 200
+
+        except Exception as e:
+            logging.error(f"Error deleting trail with ID {trail_id}: {e}")
+            abort(500, description="Internal Server Error")
+
+
     return app
 
 
