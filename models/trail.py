@@ -7,6 +7,7 @@ class Trail(db.Model):
 
     TrailID = db.Column(db.Integer, primary_key=True)
     TrailName = db.Column(db.String(100), nullable=False)
+    TrailRating = db.Column(db.Numeric(5, 3), nullable=True)
     TrailDifficulty = db.Column(db.String(10), nullable=False)
     TrailDistance = db.Column(db.Numeric(5, 2), nullable=False)
     TrailEstTime = db.Column(db.String(10), nullable=False)

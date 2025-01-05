@@ -129,6 +129,8 @@ paths:
               properties:
                 TrailName:
                   type: string
+                TrailRating:
+                  type: number
                 TrailDifficulty:
                   type: string
                 TrailDistance:
