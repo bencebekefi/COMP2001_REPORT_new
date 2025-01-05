@@ -1,0 +1,163 @@
+openapi: 3.0.0
+info:
+  title: Trails API
+  description: An API to manage trails, their features, activities, and related data.
+  version: "1.0.0"
+servers:
+  - url: http://127.0.0.1:5002
+    description: Local server
+paths:
+  /trails:
+    get:
+      summary: Get a list of trails
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination.
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          required: false
+          description: Number of items per page.
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        TrailID:
+                          type: integer
+                        TrailName:
+                          type: string
+                        TrailDifficulty:
+                          type: string
+                        TrailDistance:
+                          type: number
+                          format: float
+                        TrailEstTime:
+                          type: string
+                        TrailRouteType:
+                          type: string
+                        TrailDescription:
+                          type: string
+                        LocationID:
+                          type: integer
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  pages:
+                    type: integer
+        "500":
+          description: Internal Server Error
+    post:
+      summary: Create a new trail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                TrailName:
+                  type: string
+                  example: "Beautiful Trail"
+                TrailDifficulty:
+                  type: string
+                  example: "Easy"
+                TrailDistance:
+                  type: number
+                  example: 5.2
+                TrailEstTime:
+                  type: string
+                  example: "1 hour"
+                TrailRouteType:
+                  type: string
+                  example: "Loop"
+                TrailDescription:
+                  type: string
+                  example: "A scenic trail perfect for beginners."
+                LocationID:
+                  type: integer
+                  example: 1
+      responses:
+        "201":
+          description: Trail created successfully
+        "400":
+          description: Bad Request
+  /trails/{trail_id}:
+    get:
+      summary: Get details of a specific trail
+      parameters:
+        - name: trail_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successful response
+        "404":
+          description: Trail not found
+    put:
+      summary: Update a specific trail
+      parameters:
+        - name: trail_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                TrailName:
+                  type: string
+                TrailDifficulty:
+                  type: string
+                TrailDistance:
+                  type: number
+                TrailEstTime:
+                  type: string
+                TrailRouteType:
+                  type: string
+                TrailDescription:
+                  type: string
+                LocationID:
+                  type: integer
+      responses:
+        "200":
+          description: Trail updated successfully
+        "400":
+          description: Bad Request
+        "404":
+          description: Trail not found
+    delete:
+      summary: Delete a specific trail
+      parameters:
+        - name: trail_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Trail deleted successfully
+        "404":
+          description: Trail not found
