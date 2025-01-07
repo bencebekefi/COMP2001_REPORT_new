@@ -1,12 +1,68 @@
 openapi: 3.0.0
 info:
   title: Trails API
-  description: An API to manage trails, their features, activities, and related data.
+  description: An API to manage trails, their features, activities, and related data, with authentication.
   version: "1.0.0"
 servers:
   - url: http://127.0.0.1:5002
     description: Local server
 paths:
+  /login:
+    post:
+      summary: Authenticate a user
+      description: Login a user using their credentials.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: "your_username"
+                password:
+                  type: string
+                  example: "your_password"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  username:
+                    type: string
+        "401":
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
   /trails:
     get:
       summary: Get a list of trails
@@ -83,7 +139,7 @@ paths:
                   example: 5.2
                 TrailEstTime:
                   type: string
-                  example: "1 hour"
+                  example: "01h 30m"
                 TrailRouteType:
                   type: string
                   example: "Loop"
