@@ -4,7 +4,7 @@ info:
   description: An API to manage trails, their features, activities, and related data, with authentication.
   version: "1.0.0"
 servers:
-  - url: http://127.0.0.1:5002
+  - url: http://127.0.0.1:5000
     description: Local server
 paths:
   /login:

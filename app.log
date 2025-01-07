@@ -1,0 +1,34 @@
+2025-01-07 02:41:46,941 - INFO - Starting the application...
+2025-01-07 02:41:46,941 - INFO - Loading configuration for development environment...
+2025-01-07 02:41:46,951 - INFO - Database initialized successfully.
+2025-01-07 02:41:46,952 - INFO - Swagger UI registered successfully.
+2025-01-07 02:41:46,976 - WARNING -  * Debugger is active!
+2025-01-07 02:41:46,984 - INFO -  * Debugger PIN: 419-397-098
+2025-01-07 02:41:50,048 - INFO -  * Detected change in '/Users/bencebekefi/Desktop/COMP2001CW2_Report/COMP2001_REPORT_new/app.py', reloading
+2025-01-07 02:41:50,409 - INFO - Starting the application...
+2025-01-07 02:41:50,409 - INFO - Loading configuration for development environment...
+2025-01-07 02:41:50,417 - INFO - Database initialized successfully.
+2025-01-07 02:41:50,418 - INFO - Swagger UI registered successfully.
+2025-01-07 02:41:50,437 - WARNING -  * Debugger is active!
+2025-01-07 02:41:50,444 - INFO -  * Debugger PIN: 419-397-098
+2025-01-07 02:41:57,345 - INFO - 127.0.0.1 - - [07/Jan/2025 02:41:57] "GET /api/docs/ HTTP/1.1" 200 -
+2025-01-07 02:41:57,377 - INFO - 127.0.0.1 - - [07/Jan/2025 02:41:57] "[36mGET /api/docs/swagger-ui-standalone-preset.js HTTP/1.1[0m" 304 -
+2025-01-07 02:41:57,377 - INFO - 127.0.0.1 - - [07/Jan/2025 02:41:57] "[36mGET /api/docs/index.css HTTP/1.1[0m" 304 -
+2025-01-07 02:41:57,378 - INFO - 127.0.0.1 - - [07/Jan/2025 02:41:57] "[36mGET /api/docs/swagger-ui.css HTTP/1.1[0m" 304 -
+2025-01-07 02:41:57,379 - INFO - 127.0.0.1 - - [07/Jan/2025 02:41:57] "[36mGET /api/docs/swagger-ui-bundle.js HTTP/1.1[0m" 304 -
+2025-01-07 02:41:57,414 - INFO - 127.0.0.1 - - [07/Jan/2025 02:41:57] "GET /swagger.json HTTP/1.1" 200 -
+2025-01-07 02:42:03,470 - DEBUG - Request JSON: {'email': 'tim@plymouth.ac.uk', 'password': 'COMP2001!'}
+2025-01-07 02:42:03,471 - WARNING - Missing 'username' in request body.
+2025-01-07 02:42:03,471 - INFO - 127.0.0.1 - - [07/Jan/2025 02:42:03] "[31m[1mPOST /login HTTP/1.1[0m" 400 -
+2025-01-07 02:42:11,628 - DEBUG - Request JSON: {'username': 'tim@plymouth.ac.uk', 'password': 'COMP2001!'}
+2025-01-07 02:42:11,728 - DEBUG - Starting new HTTPS connection (1): web.socem.plymouth.ac.uk:443
+2025-01-07 02:42:11,995 - DEBUG - https://web.socem.plymouth.ac.uk:443 "POST /COMP2001/auth/api/users HTTP/1.1" 200 None
+2025-01-07 02:42:11,996 - DEBUG - Auth API response status: 200
+2025-01-07 02:42:11,996 - DEBUG - Auth API response text: ["Verified","False"]
+2025-01-07 02:42:11,996 - DEBUG - Auth API response data: ['Verified', 'False']
+2025-01-07 02:42:11,996 - WARNING - Authentication failed for user tim@plymouth.ac.uk.
+2025-01-07 02:42:11,998 - INFO - 127.0.0.1 - - [07/Jan/2025 02:42:11] "[31m[1mPOST /login HTTP/1.1[0m" 401 -
+2025-01-07 02:42:17,966 - DEBUG - Request JSON: {'email': 'tim@plymouth.ac.uk', 'password': 'COMP2001!'}
+2025-01-07 02:42:17,967 - WARNING - Missing 'username' in request body.
+2025-01-07 02:42:17,968 - INFO - 127.0.0.1 - - [07/Jan/2025 02:42:17] "[31m[1mPOST /login HTTP/1.1[0m" 400 -
+2025-01-07 02:42:43,395 - INFO -  * Detected change in '/Users/bencebekefi/Desktop/COMP2001CW2_Report/COMP2001_REPORT_new/app.py', reloading

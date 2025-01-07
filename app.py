@@ -1,16 +1,18 @@
-import requests
-from flask import Flask, jsonify, request, abort, send_from_directory
+from flask import Flask, jsonify, request, abort, session, send_from_directory
 from flask_migrate import Migrate
 from flask_swagger_ui import get_swaggerui_blueprint
 from models import db, Trail
-from sqlalchemy.orm import Session
 from config import DevelopmentConfig, TestingConfig, ProductionConfig
+import requests
 import logging
 import os
-import re
+import datetime
 
 def create_app():
     app = Flask(__name__)
+
+    # Secret key for session management
+    app.secret_key = os.environ.get("SECRET_KEY", "ee179677c3aba6ad5fc1f2e0a8e4544a8959f5e79e3c82621f21398270c85be7")
 
     # Logging configuration
     logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -35,8 +37,8 @@ def create_app():
     logging.info("Database initialized successfully.")
 
     # Swagger UI configuration
-    SWAGGER_URL = app.config['SWAGGER_URL']
-    API_URL = app.config['API_URL']
+    SWAGGER_URL = '/api/docs'
+    API_URL = '/swagger.json'  # Points to the local Swagger YAML file
     swaggerui_blueprint = get_swaggerui_blueprint(
         SWAGGER_URL,
         API_URL,
@@ -45,46 +47,7 @@ def create_app():
     app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
     logging.info("Swagger UI registered successfully.")
 
-    # External API URL for authentication
-    AUTH_API_URL = "https://web.socem.plymouth.ac.uk/COMP2001/auth/api/users"
-
-    # Authentication Route
-    @app.route('/login', methods=['POST'])
-    def login():
-        AUTH_API_URL = 'https://web.socem.plymouth.ac.uk/COMP2001/auth/api/users'
-        try:
-            credentials = request.json
-            if not credentials or 'email' not in credentials or 'password' not in credentials:
-                logging.warning("Invalid request body for login.")
-                return jsonify({"error": "Invalid request body. Email and password are required."}), 400
-
-            # Send POST request to authentication API
-            response = requests.post(AUTH_API_URL, json=credentials)
-
-            if response.status_code == 200:
-                try:
-                    auth_status = response.json()
-                    logging.info(f"Authenticated successfully: {auth_status}")
-                    if auth_status[1] == "True":
-                        return jsonify({"message": "Login successful", "email": credentials['email']}), 200
-                    else:
-                        logging.warning(f"Authentication failed for user {credentials['email']}.")
-                        return jsonify({"error": "Authentication failed"}), 401
-                except requests.JSONDecodeError:
-                    logging.error("Response is not valid JSON.")
-                    return jsonify({"error": "Invalid response from authentication server"}), 500
-            else:
-                logging.error(f"Authentication failed with status code {response.status_code}")
-                return jsonify({"error": "Authentication failed"}), response.status_code
-        except Exception as e:
-            logging.error(f"Error during authentication: {e}")
-            return jsonify({"error": "Internal Server Error"}), 500
-
-    # Other routes (index, trails CRUD, etc.)
-    @app.route('/')
-    def index():
-        return jsonify({"message": "Welcome to the Trails API!"})
-
+    # Swagger Route for Swagger JSON
     @app.route('/swagger.json')
     def swagger_json():
         try:
@@ -93,11 +56,179 @@ def create_app():
             logging.error(f"Error serving swagger.yml: {e}")
             abort(500, description="Swagger specification file not found.")
 
-    # Placeholder for other CRUD operations for trails
-    # Implement additional GET, POST, DELETE, and PUT routes as needed
+    # External API URL for authentication
+    AUTH_API_URL = "https://web.socem.plymouth.ac.uk/COMP2001/auth/api/users"
+
+    # Middleware for role-based access control
+    def role_required(required_role):
+        def decorator(func):
+            def wrapper(*args, **kwargs):
+                if 'username' not in session or 'role' not in session:
+                    logging.warning("Unauthorized access attempt.")
+                    abort(401, description="Unauthorized: Please log in.")
+                if session['role'] != required_role:
+                    logging.warning(f"Access denied for user {session['username']} with role {session['role']}.")
+                    abort(403, description="Forbidden: You do not have permission to access this resource.")
+                return func(*args, **kwargs)
+            wrapper.__name__ = func.__name__
+            return wrapper
+        return decorator
+
+    #Login Route
+    @app.route('/login', methods=['POST'])
+    def login():
+        try:
+            if not request.is_json:
+                logging.warning("Request does not contain valid JSON.")
+                return jsonify({"error": "Request must be in JSON format."}), 400
+
+            credentials = request.get_json()
+            logging.debug(f"Request JSON: {credentials}")
+
+            if not credentials:
+                logging.warning("Request body is empty or invalid.")
+                return jsonify({"error": "Request body cannot be empty."}), 400
+
+            if 'email' not in credentials:
+                logging.warning("Missing 'email' in request body.")
+                return jsonify({"error": "Missing 'email' in request body."}), 400
+
+            if 'password' not in credentials:
+                logging.warning("Missing 'password' in request body.")
+                return jsonify({"error": "Missing 'password' in request body."}), 400
+
+            # Adjusting payload to match API's expected fields
+            auth_payload = {
+                "email": credentials['email'],
+                "password": credentials['password']
+            }
+
+            response = requests.post(AUTH_API_URL, json=auth_payload)
+            logging.debug(f"Auth API response status: {response.status_code}")
+            logging.debug(f"Auth API response text: {response.text}")
+
+            if response.status_code == 200:
+                try:
+                    auth_status = response.json()
+                    logging.debug(f"Auth API response data: {auth_status}")
+
+                    if isinstance(auth_status, list) and len(auth_status) >= 2:
+                        role = auth_status[0]
+                        is_verified = auth_status[1]
+
+                        if is_verified == "True":
+                            session['username'] = credentials['email']  # Store the email as username
+                            session['role'] = role
+                            session['logged_in_at'] = datetime.datetime.utcnow().isoformat()
+
+                            logging.info(f"User {credentials['email']} authenticated successfully as {role}.")
+                            return jsonify({
+                                "message": "Login successful",
+                                "username": credentials['email'],
+                                "role": role
+                            }), 200
+                        else:
+                            logging.warning(f"Authentication failed for user {credentials['email']}.")
+                            return jsonify({"error": "Authentication failed. Check your credentials."}), 401
+                    else:
+                        logging.error(f"Unexpected auth API response format: {auth_status}")
+                        return jsonify({"error": "Unexpected response format from authentication API."}), 500
+                except Exception as e:
+                    logging.error(f"Error parsing authentication API response: {e}")
+                    return jsonify({"error": "Error parsing response from authentication API."}), 500
+            else:
+                logging.error(f"Authentication API error with status code {response.status_code}: {response.text}")
+                return jsonify({"error": f"Authentication API error: {response.status_code}"}), response.status_code
+
+        except Exception as e:
+            logging.error(f"Unexpected error during login: {e}")
+            return jsonify({"error": "Internal Server Error."}), 500
+
+
+
+
+    # Logout Route
+    @app.route('/logout', methods=['POST'])
+    def logout():
+        session.clear()
+        logging.info("User logged out successfully.")
+        return jsonify({"message": "Logged out successfully."}), 200
+
+    # CRUD operations with role-based access control
+
+    # GET a specific trail
+    @app.route('/trails/<int:trail_id>', methods=['GET'])
+    def get_trail(trail_id):
+        try:
+            trail = Trail.query.get(trail_id)
+            if not trail:
+                logging.warning(f"Trail with ID {trail_id} not found.")
+                abort(404, description=f"Trail with ID {trail_id} not found.")
+            trail_data = {
+                "TrailID": trail.TrailID,
+                "TrailName": trail.TrailName,
+                "TrailRating": float(trail.TrailRating) if trail.TrailRating is not None else None,
+                "TrailDifficulty": trail.TrailDifficulty,
+                "TrailDistance": float(trail.TrailDistance),
+                "TrailEstTime": trail.TrailEstTime,
+                "TrailRouteType": trail.TrailRouteType,
+                "TrailDescription": trail.TrailDescription,
+                "LocationID": trail.LocationID
+            }
+            logging.info(f"Trail with ID {trail_id} retrieved successfully.")
+            return jsonify(trail_data), 200
+        except Exception as e:
+            logging.error(f"Error fetching trail with ID {trail_id}: {e}")
+            abort(500, description="Internal Server Error")
+
+    # PUT update a trail
+    @app.route('/trails/<int:trail_id>', methods=['PUT'])
+    @role_required('Admin')
+    def update_trail(trail_id):
+        try:
+            trail = Trail.query.get(trail_id)
+            if not trail:
+                logging.warning(f"Trail with ID {trail_id} not found.")
+                abort(404, description=f"Trail with ID {trail_id} not found.")
+            data = request.get_json()
+            if not data:
+                logging.warning("No data provided in request.")
+                abort(400, description="No data provided.")
+            trail.TrailName = data.get("TrailName", trail.TrailName)
+            trail.TrailRating = data.get("TrailRating", trail.TrailRating)
+            trail.TrailDifficulty = data.get("TrailDifficulty", trail.TrailDifficulty)
+            trail.TrailDistance = data.get("TrailDistance", trail.TrailDistance)
+            trail.TrailEstTime = data.get("TrailEstTime", trail.TrailEstTime)
+            trail.TrailRouteType = data.get("TrailRouteType", trail.TrailRouteType)
+            trail.TrailDescription = data.get("TrailDescription", trail.TrailDescription)
+            trail.LocationID = data.get("LocationID", trail.LocationID)
+            db.session.commit()
+            logging.info(f"Trail with ID {trail_id} updated successfully.")
+            return jsonify({"message": "Trail updated successfully"}), 200
+        except Exception as e:
+            logging.error(f"Error updating trail with ID {trail_id}: {e}")
+            abort(500, description="Internal Server Error")
+
+    # DELETE a trail
+    @app.route('/trails/<int:trail_id>', methods=['DELETE'])
+    @role_required('Admin')
+    def delete_trail(trail_id):
+        try:
+            trail = Trail.query.get(trail_id)
+            if not trail:
+                logging.warning(f"Trail with ID {trail_id} not found.")
+                abort(404, description=f"Trail with ID {trail_id} not found.")
+            db.session.delete(trail)
+            db.session.commit()
+            logging.info(f"Trail with ID {trail_id} deleted successfully.")
+            return jsonify({"message": f"Trail with ID {trail_id} deleted successfully."}), 200
+        except Exception as e:
+            logging.error(f"Error deleting trail with ID {trail_id}: {e}")
+            abort(500, description="Internal Server Error")
 
     return app
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True, port=5002)
+    app.run(debug=True, port=5000)
+
