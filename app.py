@@ -74,7 +74,7 @@ def create_app():
             return wrapper
         return decorator
 
-    #Login Route
+    # Login Route
     @app.route('/login', methods=['POST'])
     def login():
         try:
@@ -97,7 +97,6 @@ def create_app():
                 logging.warning("Missing 'password' in request body.")
                 return jsonify({"error": "Missing 'password' in request body."}), 400
 
-            # Adjusting payload to match API's expected fields
             auth_payload = {
                 "email": credentials['email'],
                 "password": credentials['password']
@@ -117,7 +116,7 @@ def create_app():
                         is_verified = auth_status[1]
 
                         if is_verified == "True":
-                            session['username'] = credentials['email']  # Store the email as username
+                            session['username'] = credentials['email']  
                             session['role'] = role
                             session['logged_in_at'] = datetime.datetime.utcnow().isoformat()
 
@@ -144,9 +143,6 @@ def create_app():
             logging.error(f"Unexpected error during login: {e}")
             return jsonify({"error": "Internal Server Error."}), 500
 
-
-
-
     # Logout Route
     @app.route('/logout', methods=['POST'])
     def logout():
@@ -155,8 +151,55 @@ def create_app():
         return jsonify({"message": "Logged out successfully."}), 200
 
     # CRUD operations with role-based access control
+    @app.route('/trails', methods=['GET', 'POST'])
+    def trails():
+        if request.method == 'GET':
+            try:
+                page = request.args.get('page', 1, type=int)
+                per_page = request.args.get('per_page', 10, type=int)
+                pagination = Trail.query.order_by(Trail.TrailID).paginate(page=page, per_page=per_page)
+                trails = [{
+                    "TrailID": trail.TrailID,
+                    "TrailName": trail.TrailName,
+                    "TrailDifficulty": trail.TrailDifficulty,
+                    "TrailDistance": float(trail.TrailDistance),
+                    "TrailEstTime": trail.TrailEstTime,
+                    "TrailRouteType": trail.TrailRouteType,
+                    "TrailDescription": trail.TrailDescription,
+                    "LocationID": trail.LocationID
+                } for trail in pagination.items]
+                return jsonify({
+                    "data": trails,
+                    "total": pagination.total,
+                    "page": pagination.page,
+                    "pages": pagination.pages
+                }), 200
+            except Exception as e:
+                logging.error(f"Error fetching trails: {e}")
+                abort(500, description="Internal Server Error")
+        elif request.method == 'POST':
+            try:
+                data = request.get_json()
+                if not data:
+                    abort(400, description="Request body cannot be empty.")
+                new_trail = Trail(
+                    TrailName=data['TrailName'],
+                    TrailDifficulty=data['TrailDifficulty'],
+                    TrailDistance=data['TrailDistance'],
+                    TrailEstTime=data['TrailEstTime'],
+                    TrailRouteType=data['TrailRouteType'],
+                    TrailDescription=data.get('TrailDescription'),
+                    LocationID=data['LocationID']
+                )
+                db.session.add(new_trail)
+                db.session.commit()
+                return jsonify({"message": "Trail created successfully."}), 201
+            except KeyError as e:
+                abort(400, description=f"Missing required field: {str(e)}")
+            except Exception as e:
+                logging.error(f"Error creating trail: {e}")
+                abort(500, description="Internal Server Error")
 
-    # GET a specific trail
     @app.route('/trails/<int:trail_id>', methods=['GET'])
     def get_trail(trail_id):
         try:
@@ -181,7 +224,6 @@ def create_app():
             logging.error(f"Error fetching trail with ID {trail_id}: {e}")
             abort(500, description="Internal Server Error")
 
-    # PUT update a trail
     @app.route('/trails/<int:trail_id>', methods=['PUT'])
     @role_required('Admin')
     def update_trail(trail_id):
@@ -209,7 +251,6 @@ def create_app():
             logging.error(f"Error updating trail with ID {trail_id}: {e}")
             abort(500, description="Internal Server Error")
 
-    # DELETE a trail
     @app.route('/trails/<int:trail_id>', methods=['DELETE'])
     @role_required('Admin')
     def delete_trail(trail_id):
@@ -230,5 +271,4 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True, port=5000)
-
+    app.run(debug=True, port=5000) 
