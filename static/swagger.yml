@@ -1,6 +1,6 @@
 openapi: 3.0.0
 info:
-  title: Trail Management API
+  title: Trails API
   description: An API to manage trails, their features, activities, and related data, with authentication.
   version: "1.0.0"
 servers:

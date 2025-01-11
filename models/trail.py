@@ -15,5 +15,5 @@ class Trail(db.Model):
     TrailDescription = db.Column(db.Text, nullable=False)
     LocationID = db.Column(db.Integer, db.ForeignKey('CW2.Location.LocationID'), nullable=False)
 
-    # Define relationship with Location
+   
     location = db.relationship('Location', backref=db.backref('trails', lazy=True))

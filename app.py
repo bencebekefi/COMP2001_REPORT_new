@@ -56,25 +56,25 @@ def create_app():
     # External API URL for authentication
     AUTH_API_URL = "https://web.socem.plymouth.ac.uk/COMP2001/auth/api/users"
 
-    # Middleware for role-based access control
+    #  Middleware for role-based access control
     def role_required(required_role):
-        def decorator(func):
-            def wrapper(*args, **kwargs):
-                if 'username' not in session or 'role' not in session:
-                    logging.warning("Unauthorized access attempt.")
-                    abort(401, description="Unauthorized: Please log in.")
-                if session['role'] != required_role:
-                    logging.warning(f"Access denied for user {session['username']} with role {session['role']}.")
-                    abort(403, description="Forbidden: You do not have permission to access this resource.")
-                return func(*args, **kwargs)
-            wrapper.__name__ = func.__name__
-            return wrapper
-        return decorator
+         def decorator(func):
+             def wrapper(*args, **kwargs):
+                 if 'username' not in session or 'role' not in session:
+                     logging.warning("Unauthorized access attempt.")
+                     abort(401, description="Unauthorized: Please log in.")
+                 if session['role'] != required_role:
+                     logging.warning(f"Access denied for user {session['username']} with role {session['role']}.")
+                     abort(403, description="Forbidden: You do not have permission to access this resource.")
+                 return func(*args, **kwargs)
+             wrapper.__name__ = func.__name__
+             return wrapper
+         return decorator
 
     @app.route('/test-db')
     def test_db():
         try:
-            # Use SQLAlchemy's `text` function for raw SQL expressions
+            
             result = db.session.execute(text('SELECT 1'))
             return jsonify({"message": "Database connection successful!"}), 200
         except Exception as e:
@@ -90,34 +90,57 @@ def create_app():
 
             credentials = request.get_json()
             email = credentials.get('email')
-            password = credentials.get('password')  # Assume password validation is external for now
-
+            password = credentials.get('password')  
             if not email or not password:
                 return jsonify({"error": "Email and password are required."}), 400
 
-            # Fetch the user from the database
-            user = User.query.filter_by(EmailAddress=email).first()
-            if not user:
-                logging.warning(f"User with email {email} not found.")
+        
+            auth_payload = {'email': email, 'password': password}
+
+            
+            response = requests.post(AUTH_API_URL, json=auth_payload)
+
+            if response.status_code == 200:
+                # Parse the API response
+                api_response = response.json()
+
+                if isinstance(api_response, list) and "Verified" in api_response and "True" in api_response:
+                    # Check the SQL database for user role
+                    user = User.query.filter_by(EmailAddress=email).first()
+                    if user:
+                        session['username'] = email
+                        session['role'] = user.Role  
+                        session['logged_in_at'] = datetime.datetime.utcnow().isoformat()
+
+                        logging.info(f"User {email} authenticated successfully as {user.Role}.")
+                        return jsonify({
+                            "message": "Login successful",
+                            "username": email,
+                            "role": user.Role
+                        }), 200
+                    else:
+                        logging.warning(f"User {email} not found in the local database.")
+                        return jsonify({"error": "User is not registered in the system."}), 404
+
+                else:
+                    logging.error("Invalid API response format")
+                    return jsonify({"error": "Invalid response from authentication service."}), 500
+
+            elif response.status_code == 401:
+                logging.warning(f"Authentication failed for email: {email}")
                 return jsonify({"error": "Invalid email or password."}), 401
 
-            # Simulate authentication success (password validation can be added later)
-            session['username'] = user.EmailAddress
-            session['role'] = user.Role
-            session['logged_in_at'] = datetime.datetime.utcnow().isoformat()
+            else:       
+                logging.error(f"External API error: {response.status_code} - {response.text}")
+                return jsonify({"error": "External API error", "details": response.text}), 500
 
-            logging.info(f"User {email} authenticated successfully as {user.Role}.")
-            return jsonify({
-                "message": "Login successful",
-                "username": user.EmailAddress,
-                "role": user.Role
-            }), 200
+        except requests.exceptions.RequestException as e:  
+            logging.error(f"Error connecting to external API: {e}")
+            return jsonify({"error": "Unable to connect to the authentication service."}), 500
 
         except Exception as e:
             logging.error(f"Unexpected error during login: {e}")
             return jsonify({"error": "Internal Server Error."}), 500
-
-
 
 
     # Logout Route
@@ -134,7 +157,7 @@ def create_app():
             # Retrieve all trails from the database
             trails = Trail.query.all()
             
-            # Transform the list of Trail objects into a list of dictionaries
+            
             trails_data = [
                 {
                     "TrailID": trail.TrailID,
@@ -210,7 +233,7 @@ def create_app():
                 TrailRouteType=data["TrailRouteType"],
                 TrailDescription=data["TrailDescription"],
                 LocationID=data["LocationID"],
-                TrailRating=trail_rating  # Add the rating here
+                TrailRating=trail_rating  
             )
 
             # Add and commit to the database
