@@ -274,6 +274,12 @@ def create_app():
 
     return app
 
+    @app.route('/logout', methods=['POST'])
+    def logout():
+        session.clear()
+        logging.info("User logged out successfully.")
+        return jsonify({"message": "Logged out successfully."}), 200
+
 if __name__ == '__main__':
     app = create_app()
     app.run(debug=True, port=5000)

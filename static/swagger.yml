@@ -143,6 +143,9 @@ paths:
                 TrailRouteType:
                   type: string
                   example: "Loop"
+                TrailRating:
+                  type: number
+                  example: "4.5"
                 TrailDescription:
                   type: string
                   example: "A scenic trail perfect for beginners."
@@ -219,3 +222,28 @@ paths:
           description: Trail deleted successfully
         "404":
           description: Trail not found
+  /logout:
+      post:
+        summary: Log out the current user
+        description: Clears the session and logs out the user.
+        responses:
+          "200":
+            description: Logout successful
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+                      example: "Logged out successfully."
+          "500":
+            description: Internal Server Error
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    error:
+                      type: string
+                      example: "Internal Server Error"
