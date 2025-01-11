@@ -22,13 +22,12 @@ class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         'TEST_DATABASE_URI',
-        'sqlite:///:memory:'  # In-memory database for testing
+        'sqlite:///:memory:'  
     )
 
 
-class ProductionConfig(Config):
+class ProductionConfig:
     DEBUG = False
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        'DATABASE_URI',
-        'mssql+pyodbc://BBekefi:AqrM335*@DIST-6-505.uopnet.plymouth.ac.uk/COMP2001_BBekefi?driver=ODBC+Driver+17+for+SQL+Server'
-    )
+    TESTING = False
+    SQLALCHEMY_DATABASE_URI = 'mssql+pyodbc://BBekefi:AqrM335*@DIST-6-505.uopnet.plymouth.ac.uk/COMP2001_BBekefi?driver=ODBC+Driver+17+for+SQL+Server'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False  

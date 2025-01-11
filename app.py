@@ -1,8 +1,9 @@
 from flask import Flask, jsonify, request, abort, session, send_from_directory
 from flask_migrate import Migrate
 from flask_swagger_ui import get_swaggerui_blueprint
-from models import db, Trail
+from models import db, Trail, User
 from config import DevelopmentConfig, TestingConfig, ProductionConfig
+from sqlalchemy import text
 import requests
 import logging
 import os
@@ -21,15 +22,11 @@ def create_app():
     # Environment configuration
     env = os.environ.get('FLASK_ENV', 'development')
     logging.info(f"Loading configuration for {env} environment...")
-    if env == 'development':
-        app.config.from_object(DevelopmentConfig)
-    elif env == 'testing':
-        app.config.from_object(TestingConfig)
-    elif env == 'production':
-        app.config.from_object(ProductionConfig)
-    else:
-        logging.error("Invalid environment specified. Defaulting to DevelopmentConfig.")
-        app.config.from_object(DevelopmentConfig)
+  
+   
+    app.config.from_object(ProductionConfig)
+    
+
 
     # Database and migrations setup
     db.init_app(app)
@@ -74,7 +71,16 @@ def create_app():
             return wrapper
         return decorator
 
-    #Login Route
+    @app.route('/test-db')
+    def test_db():
+        try:
+            # Use SQLAlchemy's `text` function for raw SQL expressions
+            result = db.session.execute(text('SELECT 1'))
+            return jsonify({"message": "Database connection successful!"}), 200
+        except Exception as e:
+            logging.error(f"Database connection failed: {e}")
+            return jsonify({"error": "Database connection failed", "details": str(e)}), 500
+
     @app.route('/login', methods=['POST'])
     def login():
         try:
@@ -83,62 +89,29 @@ def create_app():
                 return jsonify({"error": "Request must be in JSON format."}), 400
 
             credentials = request.get_json()
-            logging.debug(f"Request JSON: {credentials}")
+            email = credentials.get('email')
+            password = credentials.get('password')  # Assume password validation is external for now
 
-            if not credentials:
-                logging.warning("Request body is empty or invalid.")
-                return jsonify({"error": "Request body cannot be empty."}), 400
+            if not email or not password:
+                return jsonify({"error": "Email and password are required."}), 400
 
-            if 'email' not in credentials:
-                logging.warning("Missing 'email' in request body.")
-                return jsonify({"error": "Missing 'email' in request body."}), 400
+            # Fetch the user from the database
+            user = User.query.filter_by(EmailAddress=email).first()
+            if not user:
+                logging.warning(f"User with email {email} not found.")
+                return jsonify({"error": "Invalid email or password."}), 401
 
-            if 'password' not in credentials:
-                logging.warning("Missing 'password' in request body.")
-                return jsonify({"error": "Missing 'password' in request body."}), 400
+            # Simulate authentication success (password validation can be added later)
+            session['username'] = user.EmailAddress
+            session['role'] = user.Role
+            session['logged_in_at'] = datetime.datetime.utcnow().isoformat()
 
-            # Adjusting payload to match API's expected fields
-            auth_payload = {
-                "email": credentials['email'],
-                "password": credentials['password']
-            }
-
-            response = requests.post(AUTH_API_URL, json=auth_payload)
-            logging.debug(f"Auth API response status: {response.status_code}")
-            logging.debug(f"Auth API response text: {response.text}")
-
-            if response.status_code == 200:
-                try:
-                    auth_status = response.json()
-                    logging.debug(f"Auth API response data: {auth_status}")
-
-                    if isinstance(auth_status, list) and len(auth_status) >= 2:
-                        role = auth_status[0]
-                        is_verified = auth_status[1]
-
-                        if is_verified == "True":
-                            session['username'] = credentials['email']  # Store the email as username
-                            session['role'] = role
-                            session['logged_in_at'] = datetime.datetime.utcnow().isoformat()
-
-                            logging.info(f"User {credentials['email']} authenticated successfully as {role}.")
-                            return jsonify({
-                                "message": "Login successful",
-                                "username": credentials['email'],
-                                "role": role
-                            }), 200
-                        else:
-                            logging.warning(f"Authentication failed for user {credentials['email']}.")
-                            return jsonify({"error": "Authentication failed. Check your credentials."}), 401
-                    else:
-                        logging.error(f"Unexpected auth API response format: {auth_status}")
-                        return jsonify({"error": "Unexpected response format from authentication API."}), 500
-                except Exception as e:
-                    logging.error(f"Error parsing authentication API response: {e}")
-                    return jsonify({"error": "Error parsing response from authentication API."}), 500
-            else:
-                logging.error(f"Authentication API error with status code {response.status_code}: {response.text}")
-                return jsonify({"error": f"Authentication API error: {response.status_code}"}), response.status_code
+            logging.info(f"User {email} authenticated successfully as {user.Role}.")
+            return jsonify({
+                "message": "Login successful",
+                "username": user.EmailAddress,
+                "role": user.Role
+            }), 200
 
         except Exception as e:
             logging.error(f"Unexpected error during login: {e}")
@@ -155,6 +128,33 @@ def create_app():
         return jsonify({"message": "Logged out successfully."}), 200
 
     # CRUD operations with role-based access control
+    @app.route('/trails', methods=['GET'])
+    def get_all_trails():
+        try:
+            # Retrieve all trails from the database
+            trails = Trail.query.all()
+            
+            # Transform the list of Trail objects into a list of dictionaries
+            trails_data = [
+                {
+                    "TrailID": trail.TrailID,
+                    "TrailName": trail.TrailName,
+                    "TrailRating": float(trail.TrailRating) if trail.TrailRating is not None else None,
+                    "TrailDifficulty": trail.TrailDifficulty,
+                    "TrailDistance": float(trail.TrailDistance),
+                    "TrailEstTime": trail.TrailEstTime,
+                    "TrailRouteType": trail.TrailRouteType,
+                    "TrailDescription": trail.TrailDescription,
+                    "LocationID": trail.LocationID
+                }
+                for trail in trails
+            ]
+            
+            logging.info("All trails retrieved successfully.")
+            return jsonify({"trails": trails_data}), 200
+        except Exception as e:
+            logging.error(f"Error fetching trails: {e}")
+            abort(500, description="Internal Server Error")
 
     # GET a specific trail
     @app.route('/trails/<int:trail_id>', methods=['GET'])
@@ -179,6 +179,52 @@ def create_app():
             return jsonify(trail_data), 200
         except Exception as e:
             logging.error(f"Error fetching trail with ID {trail_id}: {e}")
+            abort(500, description="Internal Server Error")
+
+    @app.route('/trails', methods=['POST'])
+    @role_required('Admin')  # Ensure only admins can create trails
+    def create_trail():
+        try:
+            # Get the JSON data from the request
+            data = request.get_json()
+            if not data:
+                logging.warning("No data provided in request.")
+                abort(400, description="Request body cannot be empty.")
+
+            # Validate required fields
+            required_fields = ["TrailName", "TrailDifficulty", "TrailDistance", "TrailEstTime", "TrailRouteType", "TrailDescription", "LocationID"]
+            for field in required_fields:
+                if field not in data:
+                    logging.warning(f"Missing field: {field}")
+                    abort(400, description=f"Missing field: {field}")
+
+            # Optional field: TrailRating
+            trail_rating = data.get("TrailRating", None)  # Default to None if not provided
+
+            # Create a new trail object
+            new_trail = Trail(
+                TrailName=data["TrailName"],
+                TrailDifficulty=data["TrailDifficulty"],
+                TrailDistance=data["TrailDistance"],
+                TrailEstTime=data["TrailEstTime"],
+                TrailRouteType=data["TrailRouteType"],
+                TrailDescription=data["TrailDescription"],
+                LocationID=data["LocationID"],
+                TrailRating=trail_rating  # Add the rating here
+            )
+
+            # Add and commit to the database
+            db.session.add(new_trail)
+            db.session.commit()
+
+            logging.info(f"Trail {new_trail.TrailName} created successfully with ID {new_trail.TrailID}.")
+            return jsonify({
+                "message": "Trail created successfully",
+                "TrailID": new_trail.TrailID
+            }), 201
+
+        except Exception as e:
+            logging.error(f"Error creating trail: {e}")
             abort(500, description="Internal Server Error")
 
     # PUT update a trail

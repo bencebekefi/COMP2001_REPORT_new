@@ -8,4 +8,4 @@ class TrailActivity(db.Model):
     ActivityID = db.Column(db.Integer, db.ForeignKey('CW2.Activity.ActivityID'), primary_key=True)
 
     # Relationships
-    trail = db.relationship('Trail', backref='activities')
+    trail = db.relatioanship('Trail', backref='activities')
